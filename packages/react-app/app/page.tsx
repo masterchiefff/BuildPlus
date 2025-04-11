@@ -1,193 +1,363 @@
-"use client";
+"use client"
 
-/* eslint-disable react-hooks/exhaustive-deps */
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useWeb3 } from "@/contexts/useWeb3";
-import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { Search, Bell, Clock, User, MapPin, Trophy, Star, Plus, PlusCircle } from "lucide-react"
+import Link from "next/link"
+import { MOCK_PROJECTS } from "@/lib/mock-data"
+import { calculateProgress, getProgressColor, weiToCUSD } from "@/lib/utils"
+import MobileNavigation from "@/components/@shared-components/mobile-navigation"
+import DesktopSidebar from "@/components/@shared-components/desktop-sidebar"
+import ConnectWalletButton from "@/components/@shared-components/connect-wallet"
 
 export default function Home() {
-    const {
-        address,
-        getUserAddress,
-        sendCUSD,
-        mintMinipayNFT,
-        getNFTs,
-        signTransaction,
-    } = useWeb3();
+  const [projects, setProjects] = useState<any[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
+  const [searchQuery, setSearchQuery] = useState<string>("")
+  const [activeTab, setActiveTab] = useState<string>("home")
+  const router = useRouter()
 
-    const [cUSDLoading, setCUSDLoading] = useState(false);
-    const [nftLoading, setNFTLoading] = useState(false);
-    const [signingLoading, setSigningLoading] = useState(false);
-    const [userOwnedNFTs, setUserOwnedNFTs] = useState<string[]>([]);
-    const [tx, setTx] = useState<any>(undefined);
-    const [amountToSend, setAmountToSend] = useState<string>("0.1");
-    const [messageSigned, setMessageSigned] = useState<boolean>(false); // State to track if a message was signed
-
-
-    useEffect(() => {
-        getUserAddress();
-    }, []);
-
-    useEffect(() => {
-        const getData = async () => {
-            const tokenURIs = await getNFTs();
-            setUserOwnedNFTs(tokenURIs);
-        };
-        if (address) {
-            getData();
-        }
-    }, [address]);
-
-    async function sendingCUSD() {
-        if (address) {
-            setSigningLoading(true);
-            try {
-                const tx = await sendCUSD(address, amountToSend);
-                setTx(tx);
-            } catch (error) {
-                console.log(error);
-            } finally {
-                setSigningLoading(false);
-            }
-        }
+  // Initialize data
+  useEffect(() => {
+    const initData = async () => {
+      try {
+        setLoading(true)
+        // In a real app, we would fetch from the blockchain
+        setProjects(MOCK_PROJECTS)
+        setLoading(false)
+      } catch (error) {
+        console.error("Failed to initialize data:", error)
+        setLoading(false)
+      }
     }
 
-    async function signMessage() {
-        setCUSDLoading(true);
-        try {
-            await signTransaction();
-            setMessageSigned(true);
-        } catch (error) {
-            console.log(error);
-        } finally {
-            setCUSDLoading(false);
-        }
-    }
+    initData()
+  }, [])
 
+  // Handle project selection
+  const selectProject = (projectId: number) => {
+    router.push(`/project/${projectId}`)
+  }
 
-    async function mintNFT() {
-        setNFTLoading(true);
-        try {
-            const tx = await mintMinipayNFT();
-            const tokenURIs = await getNFTs();
-            setUserOwnedNFTs(tokenURIs);
-            setTx(tx);
-        } catch (error) {
-            console.log(error);
-        } finally {
-            setNFTLoading(false);
-        }
-    }
+  return (
+    <div className="min-h-screen bg-black text-white">
+      {/* Desktop layout */}
+      <div className="hidden lg:flex h-screen">
+        {/* Sidebar */}
+        <DesktopSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
+        {/* Main content */}
+        <div className="flex-1 overflow-hidden">
+          {/* Header */}
+          <div className="p-4 border-b border-gray-800 flex items-center justify-between">
+            <div className="flex-1 bg-gray-800 rounded-full px-4 py-2 flex items-center max-w-md">
+              <Search className="h-4 w-4 text-gray-400 mr-2" />
+              <input
+                type="text"
+                placeholder="Search campaigns"
+                className="bg-transparent text-white text-sm w-full focus:outline-none"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-4 ml-4">
+              <button className="p-2 relative">
+                <Bell className="h-5 w-5 text-gray-300" />
+                <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
+              </button>
+              <Link
+                href="/create"
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-full"
+              >
+                <PlusCircle className="h-4 w-4" />
+                <span>Create Project</span>
+              </Link>
+              <ConnectWalletButton />
+            </div>
+          </div>
 
+          {/* Projects grid */}
+          <div className="p-6 overflow-auto h-[calc(100vh-73px)]">
+            <h1 className="text-2xl font-bold mb-6">Discover Projects</h1>
 
-    return (
-        <div className="flex flex-col justify-center items-center">
-            {!address && (
-                <div className="h1">Please install Metamask and connect.</div>
-            )}
-            {address && (
-                <div className="h1">
-                    There you go... a canvas for your next Minipay project!
+            {/* Featured project */}
+            {projects.length > 0 && (
+              <div
+                className="bg-indigo-600 rounded-xl p-4 relative overflow-hidden mb-8 cursor-pointer"
+                onClick={() => selectProject(projects[0].id)}
+              >
+                <div className="absolute top-0 left-0 right-0 bottom-0 bg-indigo-500 opacity-50 pattern-dots pattern-indigo-400 pattern-bg-indigo-600 pattern-size-4"></div>
+
+                <div className="relative z-10">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="bg-indigo-800 bg-opacity-70 rounded-full px-3 py-1 text-xs text-white flex items-center">
+                      <Clock className="h-3 w-3 mr-1" />
+                      <span>Almost done</span>
+                    </div>
+                    <div className="bg-indigo-800 bg-opacity-70 rounded-full px-3 py-1 text-xs text-white flex items-center">
+                      <Clock className="h-3 w-3 mr-1" />
+                      <span>12h left</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="flex justify-center items-center">
+                      <img
+                        src={projects[0].image || "/placeholder.svg"}
+                        alt={projects[0].title}
+                        className="h-48 object-contain"
+                      />
+                    </div>
+                    <div className="flex flex-col justify-center">
+                      <h3 className="text-2xl font-bold text-white mb-2">{projects[0].title}</h3>
+                      <p className="text-white text-sm mb-3">{projects[0].description}</p>
+                      <div className="flex items-center text-xs text-white mb-2">
+                        <User className="h-3 w-3 mr-1" />
+                        <span>14K Backers</span>
+                        <span className="mx-2">•</span>
+                        <span>
+                          {weiToCUSD(projects[0].currentAmount)} cUSD raised from {weiToCUSD(projects[0].targetAmount)}{" "}
+                          cUSD
+                        </span>
+                      </div>
+
+                      <div className="w-full bg-indigo-800 bg-opacity-50 rounded-full h-1.5 mb-3">
+                        <div
+                          className="h-1.5 rounded-full bg-white"
+                          style={{
+                            width: `${calculateProgress(projects[0].currentAmount, projects[0].targetAmount)}%`,
+                          }}
+                        ></div>
+                      </div>
+
+                      <button
+                        className="w-full bg-black text-white rounded-full py-3 font-medium"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          selectProject(projects[0].id)
+                        }}
+                      >
+                        Donate Now
+                      </button>
+                    </div>
+                  </div>
                 </div>
+              </div>
             )}
 
-            <a
-                href="https://faucet.celo.org/alfajores"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-4 mb-4 rounded-full bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-            >
-                Get Test Tokens
-            </a>
+            <h2 className="text-xl font-bold mb-4">Categories</h2>
+            <div className="grid grid-cols-4 gap-4 mb-8">
+              <div className="flex flex-col items-center">
+                <div className="bg-gray-800 rounded-full p-3 mb-2">
+                  <MapPin className="h-5 w-5 text-white" />
+                </div>
+                <span className="text-xs text-gray-300">Near to You</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="bg-gray-800 rounded-full p-3 mb-2">
+                  <Trophy className="h-5 w-5 text-white" />
+                </div>
+                <span className="text-xs text-gray-300">Leaderboard</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="bg-gray-800 rounded-full p-3 mb-2">
+                  <Star className="h-5 w-5 text-white" />
+                </div>
+                <span className="text-xs text-gray-300">Challenge</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="bg-indigo-600 rounded-full p-3 mb-2">
+                  <Plus className="h-5 w-5 text-white" />
+                </div>
+                <span className="text-xs text-gray-300">New Projects</span>
+              </div>
+            </div>
 
-            {address && (
-                <>
-                    <div className="h2 text-center">
-                        Your address:{" "}
-                        <span className="font-bold text-sm">{address}</span>
-                    </div>
-                    {tx && (
-                        <p className="font-bold mt-4">
-                            Tx Completed:{" "}
-                            <a
-                                href={`https://alfajores.celoscan.io/tx/${tx.transactionHash}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 underline"
-                            >
-                                {tx.transactionHash.substring(0, 6)}...{tx.transactionHash.substring(tx.transactionHash.length - 6)}
-                            </a>
-                        </p>
-                    )}
-                    <div className="w-full px-3 mt-7">
-                        <Input
-                            type="number"
-                            value={amountToSend}
-                            onChange={(e) => setAmountToSend(e.target.value)}
-                            placeholder="Enter amount to send"
-                            className="border rounded-md px-3 py-2 w-full mb-3"
-                        ></Input>
-                        <Button
-                            loading={signingLoading}
-                            onClick={sendingCUSD}
-                            title={`Send ${amountToSend} cUSD to your own address`}
-                            widthFull
-                        />
-                    </div>
-
-                    <div className="w-full px-3 mt-6">
-                        <Button
-                            loading={cUSDLoading}
-                            onClick={signMessage}
-                            title="Sign a Message"
-                            widthFull
-                        />
-                    </div>
-
-                    {messageSigned && (
-                        <div className="mt-5 text-green-600 font-bold">
-                            Message signed successfully!
-                        </div>
-                    )}
-
-                    <div className="w-full px-3 mt-5">
-                        <Button
-                            loading={nftLoading}
-                            onClick={mintNFT}
-                            title="Mint Minipay NFT"
-                            widthFull
-                        />
-                    </div>
-
-                    {userOwnedNFTs.length > 0 ? (
-                        <div className="flex flex-col items-center justify-center w-full mt-7">
-                            <p className="font-bold">My NFTs</p>
-                            <div className="w-full grid grid-cols-2 gap-3 mt-3 px-2">
-                                {userOwnedNFTs.map((tokenURI, index) => (
-                                    <div
-                                        key={index}
-                                        className="p-2 border-[3px] border-colors-secondary rounded-xl"
-                                    >
-                                        <Image
-                                            alt="MINIPAY NFT"
-                                            src={tokenURI}
-                                            className="w-[160px] h-[200px] object-cover"
-                                            width={160}
-                                            height={200}
-                                        />
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="mt-5">You do not have any NFTs yet</div>
-                    )}
-
-                </>
-            )}
+            <h2 className="text-xl font-bold mb-4">All Projects</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {projects.slice(1).map((project) => (
+                <div
+                  key={project.id}
+                  onClick={() => selectProject(project.id)}
+                  className="bg-gray-800 rounded-lg p-4 cursor-pointer hover:bg-gray-700 transition-colors"
+                >
+                  <div className="mb-3">
+                    <img
+                      src={project.image || "/placeholder.svg"}
+                      alt={project.title}
+                      className="w-full h-40 object-cover rounded-md"
+                    />
+                  </div>
+                  <h3 className="font-bold text-white text-lg mb-1">{project.title}</h3>
+                  <div className="flex items-center text-xs text-gray-400 mb-2">
+                    <User className="h-3 w-3 mr-1" />
+                    <span>14K Backers</span>
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-1.5 mb-1">
+                    <div
+                      className={`h-1.5 rounded-full ${getProgressColor(calculateProgress(project.currentAmount, project.targetAmount))}`}
+                      style={{ width: `${calculateProgress(project.currentAmount, project.targetAmount)}%` }}
+                    ></div>
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>{weiToCUSD(project.currentAmount)} cUSD</span>
+                    <span>{weiToCUSD(project.targetAmount)} cUSD</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-    );
+      </div>
+
+      {/* Mobile layout */}
+      <div className="lg:hidden min-h-screen flex flex-col pb-16">
+        {/* Search bar */}
+        <div className="px-4 py-3 flex items-center gap-3">
+          <div className="flex-1 bg-gray-800 rounded-full px-4 py-2 flex items-center">
+            <Search className="h-4 w-4 text-gray-400 mr-2" />
+            <input
+              type="text"
+              placeholder="Search campaign"
+              className="bg-transparent text-white text-sm w-full focus:outline-none"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <button className="p-2 relative">
+            <Bell className="h-5 w-5 text-gray-300" />
+            <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
+          </button>
+        </div>
+
+        {/* Featured project */}
+        <div className="px-4 py-2">
+          {projects.length > 0 && (
+            <div
+              className="bg-indigo-600 rounded-xl p-4 relative overflow-hidden"
+              onClick={() => selectProject(projects[0].id)}
+            >
+              <div className="absolute top-0 left-0 right-0 bottom-0 bg-indigo-500 opacity-50 pattern-dots pattern-indigo-400 pattern-bg-indigo-600 pattern-size-4"></div>
+
+              <div className="relative z-10">
+                <div className="flex justify-between items-start mb-2">
+                  <div className="bg-indigo-800 bg-opacity-70 rounded-full px-3 py-1 text-xs text-white flex items-center">
+                    <Clock className="h-3 w-3 mr-1" />
+                    <span>Almost done</span>
+                  </div>
+                  <div className="bg-indigo-800 bg-opacity-70 rounded-full px-3 py-1 text-xs text-white flex items-center">
+                    <Clock className="h-3 w-3 mr-1" />
+                    <span>12h left</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-center my-4">
+                  <img
+                    src={projects[0].image || "/placeholder.svg"}
+                    alt={projects[0].title}
+                    className="h-40 object-contain"
+                  />
+                </div>
+
+                <h3 className="text-xl font-bold text-white mb-1">{projects[0].title}</h3>
+
+                <div className="flex items-center text-xs text-white mb-2">
+                  <User className="h-3 w-3 mr-1" />
+                  <span>14K Backers</span>
+                  <span className="mx-2">•</span>
+                  <span>
+                    {weiToCUSD(projects[0].currentAmount)} cUSD raised from {weiToCUSD(projects[0].targetAmount)} cUSD
+                  </span>
+                </div>
+
+                <div className="w-full bg-indigo-800 bg-opacity-50 rounded-full h-1.5 mb-3">
+                  <div
+                    className="h-1.5 rounded-full bg-white"
+                    style={{ width: `${calculateProgress(projects[0].currentAmount, projects[0].targetAmount)}%` }}
+                  ></div>
+                </div>
+
+                <button
+                  className="w-full bg-black text-white rounded-full py-3 font-medium"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    selectProject(projects[0].id)
+                  }}
+                >
+                  Donate Now
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Discover Campaign */}
+        <div className="px-4 py-2">
+          <h2 className="text-lg font-bold text-white mb-4">Discover Campaign</h2>
+
+          <div className="grid grid-cols-4 gap-4 mb-6">
+            <div className="flex flex-col items-center">
+              <div className="bg-gray-800 rounded-full p-3 mb-2">
+                <MapPin className="h-5 w-5 text-white" />
+              </div>
+              <span className="text-xs text-gray-300">Near to You</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="bg-gray-800 rounded-full p-3 mb-2">
+                <Trophy className="h-5 w-5 text-white" />
+              </div>
+              <span className="text-xs text-gray-300">Leaderboard</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="bg-gray-800 rounded-full p-3 mb-2">
+                <Star className="h-5 w-5 text-white" />
+              </div>
+              <span className="text-xs text-gray-300">Challenge</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="bg-indigo-600 rounded-full p-3 mb-2">
+                <Plus className="h-5 w-5 text-white" />
+              </div>
+              <span className="text-xs text-gray-300">New Projects</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Other projects */}
+        <div className="px-4 py-2 flex-1 overflow-auto">
+          <div className="space-y-4">
+            {projects.slice(1).map((project) => (
+              <div
+                key={project.id}
+                onClick={() => selectProject(project.id)}
+                className="bg-gray-800 rounded-lg p-4 flex gap-3"
+              >
+                <img
+                  src={project.image || "/placeholder.svg"}
+                  alt={project.title}
+                  className="h-16 w-24 object-cover rounded-md"
+                />
+                <div className="flex-1">
+                  <h3 className="font-bold text-white text-sm">{project.title}</h3>
+                  <div className="flex items-center text-xs text-gray-400 mt-1">
+                    <User className="h-3 w-3 mr-1" />
+                    <span>14K Backers</span>
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-1.5 mt-2">
+                    <div
+                      className={`h-1.5 rounded-full ${getProgressColor(calculateProgress(project.currentAmount, project.targetAmount))}`}
+                      style={{ width: `${calculateProgress(project.currentAmount, project.targetAmount)}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Bottom navigation */}
+        <MobileNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
+      </div>
+    </div>
+  )
 }
